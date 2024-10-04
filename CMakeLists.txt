@@ -71,7 +71,8 @@ set(dependencies
   std_msgs
   std_srvs
   visualization_msgs
-  pcl_ros
+  #pcl_ros
+  tf2_ros
   pcl_conversions
   livox_ros_driver2
 )
