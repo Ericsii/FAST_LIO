@@ -120,8 +120,12 @@ PointCloudXYZI::Ptr _featsArray;
 pcl::VoxelGrid<PointType> downSizeFilterSurf;
 pcl::VoxelGrid<PointType> downSizeFilterMap;
 
-KD_TREE<PointType> ikdtree;
+// save 3D position,保存轨迹
+typedef pcl::PointXYZ Point3DType;
+typedef pcl::PointCloud<Point3DType> PointCloudXYZ3DCloud;
+pcl::PointCloud<Point3DType>::Ptr Point3DTypePtr(new pcl::PointCloud<Point3DType>); 
 
+KD_TREE<PointType> ikdtree;
 V3F XAxisPoint_body(LIDAR_SP_LEN, 0.0, 0.0);
 V3F XAxisPoint_world(LIDAR_SP_LEN, 0.0, 0.0);
 V3D euler_cur;
@@ -646,8 +650,8 @@ void publish_odometry(const rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPt
 
     geometry_msgs::msg::TransformStamped trans;
     trans.header.frame_id = "camera_init";
-    trans.header.stamp = odomAftMapped.header.stamp;
     trans.child_frame_id = "body";
+    trans.header.stamp = get_ros_time(lidar_end_time);
     trans.transform.translation.x = odomAftMapped.pose.pose.position.x;
     trans.transform.translation.y = odomAftMapped.pose.pose.position.y;
     trans.transform.translation.z = odomAftMapped.pose.pose.position.z;
@@ -1053,6 +1057,13 @@ private:
             state_point = kf.get_x();
             euler_cur = SO3ToEuler(state_point.rot);
             pos_lid = state_point.pos + state_point.rot * state_point.offset_T_L_I;
+            // 保存位姿轨迹
+            Point3DType this3DPoint;
+            this3DPoint.x=pos_lid[0];
+            this3DPoint.y=pos_lid[1];
+            this3DPoint.z=pos_lid[2];
+            Point3DTypePtr->push_back(this3DPoint);
+            
             geoQuat.x = state_point.rot.coeffs()[0];
             geoQuat.y = state_point.rot.coeffs()[1];
             geoQuat.z = state_point.rot.coeffs()[2];
@@ -1154,8 +1165,25 @@ private:
     ofstream fout_pre, fout_out, fout_dbg;
 };
 
+void save3DPosition()
+{
+    if(Point3DTypePtr->points.empty())
+    {
+        std::cout<<"Point3DTypePtr is empty, and return"<<std::endl;
+        return ;
+    }
+    string saveMapDirectory;
+    cout << "************Saving trajectory to pcd files " << endl;
+    saveMapDirectory = string(ROOT_DIR) + "PCD/";
+    system(("mkdir -p "+saveMapDirectory).c_str()); 
+    cout << "***********Save Destination= " << saveMapDirectory << endl;
+    // 保存历史关键帧位姿
+    pcl::io::savePCDFileBinary(saveMapDirectory + "/trajectory.pcd", *Point3DTypePtr);// 关键帧位置
+}
+
 int main(int argc, char** argv)
 {
+    Point3DTypePtr.reset(new pcl::PointCloud<Point3DType>); 
     rclcpp::init(argc, argv);
 
     signal(SIGINT, SigHandle);
@@ -1167,6 +1195,8 @@ int main(int argc, char** argv)
     /**************** save map ****************/
     /* 1. make sure you have enough memories
     /* 2. pcd save will largely influence the real-time performences **/
+    std::cout<<"rclcpp::ok() is not ok"<<std::endl;
+    save3DPosition();
     if (pcl_wait_save->size() > 0 && pcd_save_en)
     {
         string file_name = string("scans.pcd");
