@@ -479,7 +479,7 @@ void Preprocess::mid360_handler(const sensor_msgs::msg::PointCloud2::UniquePtr &
   pl_corn.clear();
   pl_full.clear();
 
-  pcl::PointCloud<livox_ros::LivoxPointXyzrtl> pl_orig;
+  pcl::PointCloud<livox_ros::LivoxPointXyzitl> pl_orig;
   pcl::fromROSMsg(*msg, pl_orig);
   int plsize = pl_orig.points.size();
   if (plsize == 0)
@@ -516,7 +516,7 @@ void Preprocess::mid360_handler(const sensor_msgs::msg::PointCloud2::UniquePtr &
     added_pt.x = pl_orig.points[i].x;
     added_pt.y = pl_orig.points[i].y;
     added_pt.z = pl_orig.points[i].z;
-    added_pt.intensity = pl_orig.points[i].reflectivity;
+    added_pt.intensity = pl_orig.points[i].intensity;
     added_pt.curvature = 0.;
 
     int layer = pl_orig.points[i].line;
